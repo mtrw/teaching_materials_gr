@@ -1,0 +1,9 @@
+
+genres_2020_bioinfo_setup_fns_data.R :
+
+Course functions and datasets. Must be run on the server with access to the course folder in /filer/projekte/ggr-course2020 to work and access all data. Loads libraries from /filer/projekte/ggr-course2020/r-libs. Run in course context with source("/filer/projekte/ggr-course2020/r-source/genres_2020_bioinfo_setup_fns_data.R").
+
+workshop_001_instructions.html  workshop_002_instructions.html  workshop_003_instructions.html :
+
+Instructions for workshops 1--3.
+
