@@ -1,8 +1,13 @@
 
+##### A collection of functions and things to load up for the course materials to work. It's all in here. Depends upon material in [course dir]/data and occasional other bits of the course dir.
+
 ##### FIND:SETUP #########################################################################################################
 
-#send them home
+#go home
 setwd("~")
+
+#be tolerant of non-utf-8 characters when grepping
+Sys.setlocale('LC_ALL','C')
 
 #shared library location
 ll <- "/filer/projekte/ggr-course2020/r-libs/"
@@ -43,16 +48,18 @@ while( ! require(gtools,lib.loc = ll ) ){
 
 ####### FIND:STANDARD FUNCTIONS  #########################################################################################################
 
+
 #minor_allele_frequency(sample(1,20,r=T)) #BY STATE FOR HAPLOIDS, ONLY ... NOT FOR 0,1,2 ENCODING OF DIPLOIDS
+#give it a ones-and-zeroes vector
 minor_allele_frequency <- function(x){
   tbl <- table(x)
   if(length(tbl)==1){ return(as.numeric(0)) }
   min <- tbl[order(tbl)][1]
-  if ((min / sum(tbl))==1) { browser() }
+  #if ((min / sum(tbl))==1) { browser() }
   as.numeric(min / sum(tbl))
 }
 
-
+#state of the nimor allele (or rather, whatever item in x is least frequent)
 #minor_allele(sample(1:3,20,r=T))
 minor_allele <- function(x){
   tbl <- table(x)
@@ -61,8 +68,6 @@ minor_allele <- function(x){
 }
 
 
-#be tolerant of non-utf-8 characters when grepping
-Sys.setlocale('LC_ALL','C')
 
 #create an empty plot with ranges x=c(low,high) and y=ditto
 null_plot <- function(x,y,xlab=NA,ylab=NA,...){
@@ -188,6 +193,7 @@ name_by_match <- function(vec,matches,names){
   vec
 }
 
+#exchange very A with B and every C with D: matches=c("A","C") , names=c("B","D")
 swap <- function(vec,matches,names,na.replacement=NA){
   orig_vec <- vec
   #if(sum(! matches %in% names ) > 0 ) { stop("Couldn't find all matches in names") }
@@ -200,7 +206,7 @@ swap <- function(vec,matches,names,na.replacement=NA){
   vec
 }
 
-#length of a vector
+#euclidean length of a vector
 #(c(3,4))
 vec_length <-function(x){
   ( sum( x**2 ) )**(1/2)
@@ -228,25 +234,23 @@ sample_df <- function(df,n=10,...){
 
 
 
-
-
-
-#echo to the global environment. good warning messager. still doesn't work in mclappy, hashtag doh
+#echo to the global environment. good warning messager. still doesn't work in mclappy, doh!
 #ce("beans ",list("hello "," goodbye")," whatever")
 ce <- function(...){   cat(paste0(...,"\n"), sep='', file=stderr()) %>% eval(envir = globalenv() ) %>% invisible() }
 
 
-
+#the definition of laziness
 u <- function(...){
   unique(...)
 }
 
 
-
+#waits for return key
 wait <- function(message="Press [enter] to continue"){
   invisible(readline(prompt=message))
 }
 
+#coutn NA entries in vector
 count_NAs <- function(x){
   sum(is.na(x))
 }
@@ -254,7 +258,7 @@ count_NAs <- function(x){
 
 
 ##### FIND:DATASETS #########################################################################################################
-
+#these are the datasets used in the course. Some are invented, others loaded from files, which are in [course dir]/data
 
 genotype_data_1 <- readRDS("/filer/projekte/ggr-course2020/data/simpop_1.Rds")
 positions <- c(262,669, 632 , 62 , 59, 268 ,244 ,103, 452 ,117, 636 ,557 ,685 ,209, 719, 488, 969 , 76 ,529, 866)
@@ -341,18 +345,24 @@ phenotype_data[ , cold_tolerance_LT50 := ifelse(annuality=="winter_type",cold_to
 
 
 ################## KASP FUNCTIONS ################################################################################
+#for the KASP markers part of the course
+
+#parse the text output from the thermocycler program
 read_KASP_output <- function(fname="/filer/projekte/ggr-course2020/data/KASP*"){
   fread(cmd=paste0('cat ',fname,' | grep "\\S" | awk \'/Well/ {p=1} /SDS/ {p=0} p==1 && !/Well/ {print $2,$3,$4,$5}\''),col.names=c("sample","marker_id","fluorescence_allele_1","fluorescence_allele_2"))
 }
+
+#needed in environment for course material to work
 kasp <- read_KASP_output()
 
+#just reads this one file to get the GTs
 read_KASP_genotypes <- function(){
   g <- fread("/filer/projekte/ggr-course2020/data/KASP.csv",blank.lines.skip = TRUE)[marker != ""]
   g[, genotype := as.integer(genotype) ]
   g[]
 }
 
-
+#plots parsed kasp output for manual snp calling
 plot_KASP_output <- function(kasp,marker,colour_samples=FALSE){
   k <- copy(kasp)
   k <- k[marker_id==marker]
@@ -401,12 +411,14 @@ plot_KASP_output <- function(kasp,marker,colour_samples=FALSE){
 
 #customisable pop sim (finite sites, two states)
 
+#needed for pop sim
 mutate <- function(gt,mut_rate=0.2){
   r <- runif(length(gt)) < mut_rate
   gt[r] <- sample(0:1L,sum(r),replace=T)
   gt
 }
 
+#needed for pop sim
 recombine <- function(gt1,gt2){
   if(runif(1)>=.5){
     gt1 -> t
@@ -418,7 +430,7 @@ recombine <- function(gt1,gt2){
   c(gt1[1:bp],gt2[(bp+1):length(gt2)])
 }
 
-
+#needed for pop sim
 make_starting_pop <- function(default_size,n_loci,mut_rate){
   p <- data.table(
     population = rep(1,default_size*n_loci),
@@ -433,7 +445,8 @@ make_starting_pop <- function(default_size,n_loci,mut_rate){
 
 
 
-
+#the main population sim wrapper
+  #requres an "events" table to describe how the pop will evolve. Look at the lecture notes for examples.
 sim_pop <- function(n_gens=15,events,default_size=10,n_loci=30,mut_rate=.1,plot=TRUE){
   pop <- pop1 <- make_starting_pop(default_size,n_loci,mut_rate)
   pop[ , generation := 0 ]
@@ -456,7 +469,7 @@ sim_pop <- function(n_gens=15,events,default_size=10,n_loci=30,mut_rate=.1,plot=
 #scenario1 <- sim_pop(n_gens=100,events=events,default_size = 20,mut_rate = .1)
 
 
-
+#plots the simulated genetic diversity as a PCA, optinally colouring by some given variable
 #scenario=combined_data; colour_variable="rachilla_hairs"; colour_variable="latitude"
 plot_genetic_diversity <- function(scenario,colour_variable=NULL){
   sim <- FALSE
@@ -514,8 +527,7 @@ plot_genetic_diversity <- function(scenario,colour_variable=NULL){
 
 
 
-#graphical GTs
-
+#graphical GTs of a simulated population
 plot_simulated_genotypes <- function(scenario,show_populations=FALSE){
   if(!is.null(dev.list())) {dev.off() %>% invisible}
   par(mfrow=c(1,1),pch=20)
@@ -527,7 +539,7 @@ plot_simulated_genotypes <- function(scenario,show_populations=FALSE){
   points(x=s$locus,y=s$individual,col=replace_levels_with_colours(s$gt),pch=shapes)
 }
 
-
+#this is a kludge but an necessary one. There is no way to check analytically what the popsize max and mins will be from the events table. This simulates ONLY the pop sizes (cf the actual genotype evolution of individuals) to get this info.
 sim_popsizes_before_running <- function(events,default_size=100){
   popsizes <- c(default_size)
   max_size <- 0
@@ -568,7 +580,7 @@ sim_popsizes_before_running <- function(events,default_size=100){
 }
 
 
-
+#needed for sim pop
 generation <- function(pop,event,mut_rate=.2,plot_pop_gen_maxpop=NULL){
   #pop muct be ordered for ind then for locus (so genotype is comparable when grouping on ind)
   #browser()
@@ -637,6 +649,7 @@ generation <- function(pop,event,mut_rate=.2,plot_pop_gen_maxpop=NULL){
   a[, .(individual=frank(individual,ties.method="dense"),locus,gt),by=.(population=new_pop)]
 }
 
+#examples of running the pop sim
 # events1 <- data.table(
 #   event = c("split","merge","split","merge"),
 #   size = c(3,1,5,3),
@@ -660,6 +673,7 @@ generation <- function(pop,event,mut_rate=.2,plot_pop_gen_maxpop=NULL){
 # scenario2 <- sim_pop( default_size = 30 , n_gens=30 , events=events2 , mut_rate = .05 )
 # plot_genetic_diversity( scenario2 )
 
+#fit it, print the summary, plot it.
 fit_polynomial <- function(x,y,degree=2){
   X <- seq(from=min(x),to=max(x),length.out=100)
   l <- lm( y ~ poly(x,degree) )
@@ -668,18 +682,22 @@ fit_polynomial <- function(x,y,degree=2){
   print(summary(l))
   invisible(l)
 }
+#fit_polynomial(1:40,(1:40)**2)
 
+#################### FOR THE LINEAR MODEL PART OF THE COURSE ############################
 
-
-
+#needed in plots.
 img <- jpeg::readJPEG("/filer/projekte/ggr-course2020/data/rye_height.jpg",native = T)
-n <- 20 #must be above 9
-eff_fertiliser <- 2
-eff_subpopulation <- 10
-eff_SNP1 <- 12
-eff_SNP2 <- 0
-err_sd <- 1
 
+#preset parameters
+n <- 20 #must be above 9
+eff_fertiliser <- 2 #effect sizes
+eff_subpopulation <- 10 #effect sizes
+eff_SNP1 <- 12 #effect sizes
+eff_SNP2 <- 0 #effect sizes
+err_sd <- 1 #error noise
+
+  #simulate a population of n plants obeying the above causal factors
 set.seed(21)
 d <- data.table(
   fertiliser = abs(rnorm(n,20,7)),
@@ -697,6 +715,10 @@ d[3,SNP2:=1]
 d[round(n/3)+4,SNP2:=0]
 set.seed(NULL)
 
+
+
+#take a guess at the params and see how well it fits : these functions are all v. similar, they just add more possible effects to the model.
+#there is a more elegant way to write this but this works fine and also having distinct function names is didactically helpful
 
 check_fit_fertiliser <- function(data=d,guess_eff_fertiliser,image=img){
   #test!
@@ -927,7 +949,7 @@ ce("\n-------------------------------------------\nGENETIC RESOURCES 2020 COURSE
 
 
 
-# #misc: pipetting exercise
+# #misc: pipetting exercise. This is just how to calculate the concentrations required for the pipetting exercise (which will be run by Axel anyway).
 # a <- 1*(1/2)**c(0:4)
 # b <- rev(a)
 # m <- pmin(a,b)
